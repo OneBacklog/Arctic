@@ -10,6 +10,11 @@ services:
     environment:
       - NODE_ENV=production
       - COOKIE_SECURE=true
+      - JWT_SECRET=${JWT_SECRET}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - DATABASE_PATH=${DATABASE_PATH}
+      - FILES_PATH=${FILES_PATH}
+      - MEILISEARCH_HOST=${MEILISEARCH_HOST}
     volumes:
       - ./data/db:/app/data/db
       - ./data/files:/app/data/files
@@ -27,6 +32,8 @@ services:
       context: .
       dockerfile: Dockerfile
     profiles: [tools]
+    environment:
+      - DATABASE_PATH=${DATABASE_PATH}
     volumes:
       - ./data/db:/app/data/db
     command: node /app/scripts/setup-auth.mjs
@@ -40,6 +47,7 @@ services:
     environment:
       - MEILI_NO_ANALYTICS=true
       - MEILI_ENV=production
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
     volumes:
       - ./data/meili:/meili_data
     healthcheck:
