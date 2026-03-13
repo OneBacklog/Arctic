@@ -1,0 +1,191 @@
+import type { Note } from './types'
+
+const MIME_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'image/avif': '.avif',
+  'image/bmp': '.bmp',
+  'image/tiff': '.tiff',
+  'image/svg+xml': '.svg',
+  'application/pdf': '.pdf',
+  'text/plain': '.txt',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'audio/mpeg': '.mp3',
+  'audio/ogg': '.ogg',
+  'audio/wav': '.wav',
+}
+
+function fileWithExt(f: File): [File, string] {
+  const raw = f.name || 'file'
+  const dotIdx = raw.lastIndexOf('.')
+  const ext = dotIdx > -1 ? raw.slice(dotIdx).toLowerCase() : ''
+  // Use MIME-derived extension when filename has none, is generic (.bin), or is just 'blob'
+  const mimeExt = MIME_EXT[f.type]
+  if (mimeExt && (!ext || ext === '.bin' || raw === 'blob')) {
+    const base = ext ? raw.slice(0, dotIdx) : raw
+    return [f, `${base || 'file'}${mimeExt}`]
+  }
+  return [f, raw]
+}
+
+export const useNotes = () => {
+  const notes = useState<Note[]>('notes', () => [])
+  const loading = useState<boolean>('notes-loading', () => false)
+  const hasMore = useState<boolean>('notes-has-more', () => false)
+  const notesPage = useState<number>('notes-page', () => 1)
+  const notesParams = useState<{ archived?: boolean; trashed?: boolean; label?: string }>('notes-params', () => ({}))
+
+  const apiFetch = useRequestFetch()
+  const { syncNote } = useSearch()
+
+  const fetchNotes = async (params: { archived?: boolean; trashed?: boolean; label?: string } = {}) => {
+    loading.value = true
+    notesParams.value = params
+    notesPage.value = 1
+    try {
+      const query: Record<string, string> = { page: '1' }
+      if (params.archived) query.archived = 'true'
+      if (params.trashed) query.trashed = 'true'
+      if (params.label) query.label = params.label
+      const data = await apiFetch<{ notes: Note[]; hasMore: boolean }>('/api/notes', { query })
+      notes.value = data.notes
+      hasMore.value = data.hasMore
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchMoreNotes = async () => {
+    if (loading.value || !hasMore.value) return
+    loading.value = true
+    try {
+      const params = notesParams.value
+      const nextPage = notesPage.value + 1
+      const query: Record<string, string> = { page: String(nextPage) }
+      if (params.archived) query.archived = 'true'
+      if (params.trashed) query.trashed = 'true'
+      if (params.label) query.label = params.label
+      const data = await apiFetch<{ notes: Note[]; hasMore: boolean }>('/api/notes', { query })
+      notes.value = [...notes.value, ...data.notes]
+      hasMore.value = data.hasMore
+      notesPage.value = nextPage
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createNote = async (payload: Partial<Note> & { labelIds?: string[] }) => {
+    const note = await apiFetch<Note>('/api/notes', { method: 'POST', body: payload })
+    notes.value.unshift(note)
+    return note
+  }
+
+  const updateNote = async (id: string, payload: Partial<Note> & { labelIds?: string[] }) => {
+    const updated = await apiFetch<Note>(`/api/notes/${id}`, { method: 'PUT', body: payload })
+    const idx = notes.value.findIndex((n) => n.id === id)
+    if (idx !== -1) {
+      const prev = notes.value[idx]!
+      const statusChanged = prev.isArchived !== updated.isArchived || prev.isTrashed !== updated.isTrashed
+      if (statusChanged && (updated.isArchived || updated.isTrashed)) {
+        notes.value.splice(idx, 1)
+      } else {
+        notes.value[idx] = updated
+      }
+    }
+    syncNote(updated)
+    return updated
+  }
+
+  const deleteNote = async (id: string) => {
+    await apiFetch(`/api/notes/${id}`, { method: 'DELETE' })
+    notes.value = notes.value.filter((n) => n.id !== id)
+    useSnackbar().show('Note Permanently Deleted')
+  }
+
+  const trashNote = async (id: string) => {
+    await apiFetch(`/api/notes/${id}`, { method: 'PUT', body: { isTrashed: true } })
+    notes.value = notes.value.filter((n) => n.id !== id)
+    useSnackbar().show('Note Moved to Trash')
+  }
+
+  const restoreNote = async (id: string) => {
+    await apiFetch(`/api/notes/${id}`, { method: 'PUT', body: { isTrashed: false } })
+    notes.value = notes.value.filter((n) => n.id !== id)
+    useSnackbar().show('Note Restored')
+  }
+
+  const archiveNote = async (id: string) => {
+    await apiFetch(`/api/notes/${id}`, { method: 'PUT', body: { isArchived: true } })
+    notes.value = notes.value.filter((n) => n.id !== id)
+    useSnackbar().show('Note Archived')
+  }
+
+  const unarchiveNote = async (id: string) => {
+    await apiFetch(`/api/notes/${id}`, { method: 'PUT', body: { isArchived: false } })
+    notes.value = notes.value.filter((n) => n.id !== id)
+    useSnackbar().show('Note Unarchived')
+  }
+
+  const uploadAttachment = async (noteId: string, files: File[]) => {
+    const form = new FormData()
+    files.forEach((f) => {
+      const [file, name] = fileWithExt(f)
+      form.append('files', file, name)
+    })
+    let result: { attachments: Note['attachments'] }
+    try {
+      result = await apiFetch<{ attachments: Note['attachments'] }>(`/api/notes/${noteId}/attachments`, {
+        method: 'POST',
+        body: form,
+      })
+    } catch (err: any) {
+      const msg = err?.data?.statusMessage || err?.statusMessage || err?.message || 'Upload Failed'
+      useSnackbar().show(msg, 'error')
+      return []
+    }
+    const idx = notes.value.findIndex((n) => n.id === noteId)
+    if (idx !== -1) {
+      notes.value[idx]!.attachments.push(...result.attachments)
+    }
+    return result.attachments
+  }
+
+  const deleteAttachment = async (noteId: string, attId: string) => {
+    await apiFetch(`/api/notes/${noteId}/attachments/${attId}`, { method: 'DELETE' })
+    const idx = notes.value.findIndex((n) => n.id === noteId)
+    if (idx !== -1) {
+      notes.value[idx]!.attachments = notes.value[idx]!.attachments.filter((a) => a.id !== attId)
+    }
+  }
+
+  const emptyTrash = async () => {
+    const trashed = notes.value.filter((n) => n.isTrashed)
+    await Promise.all(trashed.map((n) => apiFetch(`/api/notes/${n.id}`, { method: 'DELETE' })))
+    notes.value = notes.value.filter((n) => !n.isTrashed)
+    useSnackbar().show('All Trash Permanently Deleted')
+  }
+
+  return {
+    notes: readonly(notes),
+    loading: readonly(loading),
+    hasMore: readonly(hasMore),
+    fetchNotes,
+    fetchMoreNotes,
+    createNote,
+    updateNote,
+    deleteNote,
+    trashNote,
+    restoreNote,
+    archiveNote,
+    unarchiveNote,
+    uploadAttachment,
+    deleteAttachment,
+    emptyTrash,
+  }
+}

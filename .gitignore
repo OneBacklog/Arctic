@@ -1,0 +1,43 @@
+# Nuxt build outputs
+.output
+.nuxt
+.nitro
+.data
+.cache
+dist
+
+# Node
+node_modules
+
+# User data — database, uploads, search index
+/data/
+/files/
+/meili_data/
+
+# SQLite files (in case they end up outside data/)
+*.db
+*.db-shm
+*.db-wal
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE / Editor
+.vscode/
+.idea/
+.fleet/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - COOKIE_SECURE=false
+    volumes:
+      - ./app:/app/app
+      - ./server:/app/server
+      - ./public:/app/public
+      - ./nuxt.config.ts:/app/nuxt.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./drizzle.config.ts:/app/drizzle.config.ts
