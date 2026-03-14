@@ -59,6 +59,7 @@
         v-if="fileAttachments.length > 0"
         :attachments="fileAttachments"
         :deletable="true"
+        :note-id="props.note?.id"
         @delete="deleteAtt"
       />
 
@@ -218,4 +219,3 @@ const deleteAtt = async (attId: string) => {
 
 defineExpose({ showTitleError: () => { titleError.value = true } })
 </script>
-

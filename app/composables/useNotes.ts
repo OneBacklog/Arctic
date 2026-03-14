@@ -164,6 +164,20 @@ export const useNotes = () => {
     }
   }
 
+  const renameAttachment = async (noteId: string, attId: string, filename: string) => {
+    const data = await apiFetch<{ attachment: Note['attachments'][number] }>(
+      `/api/notes/${noteId}/attachments/${attId}`,
+      { method: 'PUT', body: { filename } }
+    )
+    const idx = notes.value.findIndex((n) => n.id === noteId)
+    if (idx !== -1) {
+      const note = notes.value[idx]!
+      note.attachments = note.attachments.map((a) => (a.id === attId ? data.attachment : a))
+      syncNote(note)
+    }
+    return data.attachment
+  }
+
   const emptyTrash = async () => {
     const trashed = notes.value.filter((n) => n.isTrashed)
     await Promise.all(trashed.map((n) => apiFetch(`/api/notes/${n.id}`, { method: 'DELETE' })))
@@ -186,6 +200,7 @@ export const useNotes = () => {
     unarchiveNote,
     uploadAttachment,
     deleteAttachment,
+    renameAttachment,
     emptyTrash,
   }
 }

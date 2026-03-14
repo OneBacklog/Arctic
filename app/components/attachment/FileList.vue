@@ -8,7 +8,18 @@
       <svg class="w-4 h-4 text-nord-slate dark:text-nord-frost flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 002.112 2.13"/>
       </svg>
+      <template v-if="renamingId === att.id">
+        <input
+          ref="renameInputRef"
+          v-model="renameValue"
+          type="text"
+          class="flex-1 text-xs bg-nord-obsidian text-nord-snow rounded-md px-2 py-1 border border-nord-graphite outline-none"
+          @keydown.enter.prevent="saveRename(att)"
+          @keydown.escape.prevent="cancelRename"
+        >
+      </template>
       <a
+        v-else
         :href="`/api/files/${att.id}?download=1`"
         target="_blank"
         rel="noopener noreferrer"
@@ -23,8 +34,22 @@
         <button class="text-xs text-nord-slate dark:text-nord-frost hover:underline" @click.stop="confirmingId = null">Cancel</button>
         <button class="text-xs text-nord-ember font-medium hover:underline" @click.stop="$emit('delete', att.id); confirmingId = null">Delete</button>
       </template>
+      <template v-else-if="renamingId === att.id">
+        <button class="text-xs text-nord-slate dark:text-nord-frost hover:underline" @click.stop="cancelRename">Cancel</button>
+        <button class="text-xs text-nord-aurora font-medium hover:underline" @click.stop="saveRename(att)">Save</button>
+      </template>
       <template v-else>
         <span class="text-xs text-nord-slate dark:text-nord-frost">{{ formatSize(att.size) }}</span>
+        <button
+          v-if="deletable && noteId"
+          class="w-6 h-6 flex items-center justify-center rounded-full text-nord-frost hover:bg-nord-graphite/40 transition-all flex-shrink-0"
+          title="Rename"
+          @click.stop="startRename(att)"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.862 4.487a2.25 2.25 0 013.182 3.182L7.5 20.213l-4.5 1.125 1.125-4.5L16.862 4.487z"/>
+          </svg>
+        </button>
         <button
           v-if="deletable"
           class="w-6 h-6 flex items-center justify-center rounded-full text-nord-ember hover:bg-nord-ember/10 transition-all flex-shrink-0"
@@ -42,11 +67,15 @@
 
 <script setup lang="ts">
 import type { Attachment } from '~/composables/types'
-defineProps<{ attachments: Attachment[]; deletable?: boolean }>()
+const props = defineProps<{ attachments: Attachment[]; deletable?: boolean; noteId?: string }>()
 defineEmits<{ delete: [id: string] }>()
 
 const confirmingId = ref<string | null>(null)
+const renamingId = ref<string | null>(null)
+const renameValue = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
 const { show: showSnackbar } = useSnackbar()
+const { renameAttachment } = useNotes()
 const isStandalone = computed(() => {
   if (process.server) return false
   return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true
@@ -66,5 +95,34 @@ const openAttachment = (att: Attachment) => {
     return
   }
   window.open(url, '_blank', 'noopener')
+}
+
+const startRename = async (att: Attachment) => {
+  renamingId.value = att.id
+  renameValue.value = att.filename
+  await nextTick()
+  renameInputRef.value?.focus()
+}
+
+const cancelRename = () => {
+  renamingId.value = null
+  renameValue.value = ''
+}
+
+const saveRename = async (att: Attachment) => {
+  if (!props.noteId) return
+  const nextName = renameValue.value.trim()
+  if (!nextName) {
+    showSnackbar('Filename is required', 'error')
+    return
+  }
+  try {
+    await renameAttachment(props.noteId, att.id, nextName)
+    showSnackbar('Attachment Renamed')
+    cancelRename()
+  } catch (e: any) {
+    const msg = e?.data?.statusMessage || e?.statusMessage || e?.message || 'Rename Failed'
+    showSnackbar(msg, 'error')
+  }
 }
 </script>
