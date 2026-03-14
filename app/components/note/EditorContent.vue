@@ -56,15 +56,16 @@
 
       <!-- File attachments list (existing note, non-image) -->
       <AttachmentFileList
-        v-if="fileAttachments.length > 0"
+        v-if="fileAttachments.length > 0 || uploadingOtherFiles.length > 0"
         :attachments="fileAttachments"
+        :uploading-files="uploadingOtherFiles"
         :deletable="true"
         :note-id="props.note?.id"
         @delete="deleteAtt"
       />
 
       <!-- Upload indicator -->
-      <div v-if="showUploading" class="flex items-center gap-2 px-2 py-1.5 text-xs text-nord-frost">
+      <div v-if="showUploading && fileAttachments.length === 0 && uploadingOtherFiles.length === 0" class="flex items-center gap-2 px-2 py-1.5 text-sm text-nord-frost">
         <div class="w-3 h-3 border border-nord-frost border-t-transparent rounded-full animate-spin flex-shrink-0" />
         Uploading...
       </div>
@@ -159,6 +160,7 @@ watch(() => props.titleError, (v) => { if (v !== undefined) titleError.value = v
 const {
   pendingImageFiles,
   pendingOtherFiles,
+  uploadingOtherFiles,
   uploading,
   confirmingPendingIdx,
   fileInputRef,

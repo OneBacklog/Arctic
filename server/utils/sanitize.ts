@@ -54,7 +54,12 @@ export function sanitizeFilename(filename: string): string {
   const rawName = dotIdx > -1 ? base.slice(0, dotIdx) : base
   const ext = dotIdx > -1 ? base.slice(dotIdx) : ''
 
-  const cleanName = rawName.replace(/ /g, '-').replace(/[^\w\-]/g, '')
+  const cleanName = rawName
+    .replace(/ /g, '-')
+    .replace(/[^\w\-.]/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.+/, '')
+    .replace(/\.+$/, '')
   const safeName = cleanName || Math.random().toString(36).slice(2, 10)
 
   return safeName + ext

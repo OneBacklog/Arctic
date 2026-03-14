@@ -77,12 +77,29 @@
         </button>
       </template>
     </div>
+
+    <div
+      v-for="(file, idx) in displayUploads"
+      :key="`upload-${idx}-${file.name}-${file.lastModified}`"
+      class="flex items-center gap-2 h-6 rounded-lg"
+    >
+      <div v-if="isSortable" class="w-4 h-4 flex-shrink-0" />
+      <div class="w-4 h-4 border border-nord-frost border-t-transparent rounded-full animate-spin flex-shrink-0" />
+      <span class="flex-1 text-sm text-nord-slate dark:text-nord-ice truncate">
+        {{ file.name }}
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { Attachment } from '~/composables/types'
-const props = defineProps<{ attachments: Attachment[]; deletable?: boolean; noteId?: string }>()
+const props = defineProps<{
+  attachments: Attachment[]
+  uploadingFiles?: File[]
+  deletable?: boolean
+  noteId?: string
+}>()
 defineEmits<{ delete: [id: string] }>()
 
 const confirmingId = ref<string | null>(null)
@@ -94,6 +111,7 @@ const { renameAttachment, reorderAttachments } = useNotes()
 const localAttachments = ref<Attachment[]>([])
 const isSortable = computed(() => Boolean(props.deletable && props.noteId))
 const displayAttachments = computed(() => localAttachments.value)
+const displayUploads = computed(() => props.uploadingFiles ?? [])
 watch(
   () => props.attachments,
   (next) => { localAttachments.value = [...next] },

@@ -9,6 +9,7 @@ export function useEditorFileUpload(
   const { startUpload, endUpload } = useNoteUploadState()
 
   const pendingFiles = ref<File[]>([...(initialFiles ?? [])])
+  const uploadingOtherFiles = ref<File[]>([])
   const uploading = ref(false)
   const confirmingPendingIdx = ref<number | null>(null)
 
@@ -29,11 +30,18 @@ export function useEditorFileUpload(
     if (!files.length) { input.value = ''; return }
 
     if (noteRef.value) {
+      const otherFiles = files.filter((f) => !f.type.startsWith('image/'))
+      if (otherFiles.length > 0) {
+        uploadingOtherFiles.value = [...uploadingOtherFiles.value, ...otherFiles]
+      }
       uploading.value = true
       startUpload(noteRef.value.id)
       try {
         await uploadAttachment(noteRef.value.id, files)
       } finally {
+        if (otherFiles.length > 0) {
+          uploadingOtherFiles.value = uploadingOtherFiles.value.filter((f) => !otherFiles.includes(f))
+        }
         uploading.value = false
         endUpload(noteRef.value.id)
       }
@@ -61,6 +69,7 @@ export function useEditorFileUpload(
 
   return {
     pendingFiles,
+    uploadingOtherFiles,
     uploading,
     confirmingPendingIdx,
     pendingImageFiles,
