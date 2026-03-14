@@ -96,6 +96,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const uploaded: typeof schema.attachments.$inferSelect[] = []
+  const existingCount = (
+    await db.select().from(schema.attachments).where(eq(schema.attachments.noteId, noteId)).all()
+  ).length
 
   for (const part of formData) {
     if (!part.filename || !part.data) continue
@@ -153,6 +156,7 @@ export default defineEventHandler(async (event) => {
       mimeType: storedMime,
       size: part.data.length,
       thumbnailPath,
+      position: existingCount + uploaded.length,
       createdAt: now,
     })
 

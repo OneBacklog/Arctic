@@ -178,6 +178,22 @@ export const useNotes = () => {
     return data.attachment
   }
 
+  const reorderAttachments = async (noteId: string, ids: string[]) => {
+    await apiFetch(`/api/notes/${noteId}/attachments/reorder`, { method: 'PUT', body: { ids } })
+    const idx = notes.value.findIndex((n) => n.id === noteId)
+    if (idx !== -1) {
+      const note = notes.value[idx]!
+      const byId = new Map(note.attachments.map((a) => [a.id, a]))
+      note.attachments = ids
+        .map((id, position) => {
+          const att = byId.get(id)
+          return att ? { ...att, position } : null
+        })
+        .filter((a): a is NonNullable<typeof a> => Boolean(a))
+      syncNote(note)
+    }
+  }
+
   const emptyTrash = async () => {
     const trashed = notes.value.filter((n) => n.isTrashed)
     await Promise.all(trashed.map((n) => apiFetch(`/api/notes/${n.id}`, { method: 'DELETE' })))
@@ -201,6 +217,7 @@ export const useNotes = () => {
     uploadAttachment,
     deleteAttachment,
     renameAttachment,
+    reorderAttachments,
     emptyTrash,
   }
 }

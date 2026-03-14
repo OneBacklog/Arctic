@@ -62,6 +62,7 @@ export default defineEventHandler(async (event) => {
           .select()
           .from(schema.attachments)
           .where(eq(schema.attachments.noteId, note.id))
+          .orderBy(asc(schema.attachments.position), asc(schema.attachments.createdAt))
           .all(),
       ])
 

@@ -29,7 +29,12 @@ export async function getNotesWithMeta(noteIds: string[]) {
               .orderBy(asc(schema.checklistItems.position))
               .all()
           : Promise.resolve([]),
-        db.select().from(schema.attachments).where(eq(schema.attachments.noteId, note.id)).all(),
+        db
+          .select()
+          .from(schema.attachments)
+          .where(eq(schema.attachments.noteId, note.id))
+          .orderBy(asc(schema.attachments.position), asc(schema.attachments.createdAt))
+          .all(),
       ])
 
       return {

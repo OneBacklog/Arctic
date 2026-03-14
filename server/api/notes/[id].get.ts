@@ -21,7 +21,12 @@ export default defineEventHandler(async (event) => {
       .where(eq(schema.checklistItems.noteId, id))
       .orderBy(asc(schema.checklistItems.position))
       .all(),
-    db.select().from(schema.attachments).where(eq(schema.attachments.noteId, id)).all(),
+    db
+      .select()
+      .from(schema.attachments)
+      .where(eq(schema.attachments.noteId, id))
+      .orderBy(asc(schema.attachments.position), asc(schema.attachments.createdAt))
+      .all(),
   ])
 
   return {

@@ -1,10 +1,25 @@
 <template>
   <div class="mt-2 space-y-1">
     <div
-      v-for="att in attachments"
+      v-for="(att, idx) in displayAttachments"
       :key="att.id"
-      class="flex items-center gap-2 group px-2 h-9 rounded-lg"
+      class="flex items-center gap-2 group h-6 rounded-lg"
+      :class="dragOverIdx === idx ? 'bg-nord-aurora/10' : ''"
+      :data-drag-idx="idx"
+      :draggable="isSortable && renamingId !== att.id"
+      @dragstart="onDragStart(idx)"
+      @dragover.prevent="onDragOver(idx)"
+      @drop.prevent="onDrop(idx)"
+      @dragend="onDragEnd"
     >
+      <svg
+        v-if="isSortable"
+        class="w-4 h-4 flex-shrink-0 text-white opacity-40 cursor-grab active:cursor-grabbing touch-none select-none"
+        fill="currentColor" viewBox="0 0 24 24"
+        @touchstart.prevent="startTouchDrag(idx)"
+      >
+        <path d="M9 4a1 1 0 100 2 1 1 0 000-2zm6 0a1 1 0 100 2 1 1 0 000-2zM9 10a1 1 0 100 2 1 1 0 000-2zm6 0a1 1 0 100 2 1 1 0 000-2zM9 16a1 1 0 100 2 1 1 0 000-2zm6 0a1 1 0 100 2 1 1 0 000-2z"/>
+      </svg>
       <svg class="w-4 h-4 text-nord-slate dark:text-nord-frost flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 002.112 2.13"/>
       </svg>
@@ -13,7 +28,7 @@
           :ref="(el) => setRenameRef(att.id, el)"
           v-model="renameValue"
           type="text"
-          class="flex-1 text-xs bg-nord-obsidian text-nord-snow rounded-md px-2 py-1 border border-nord-graphite outline-none"
+          class="flex-1 text-sm bg-nord-obsidian text-nord-snow rounded-md px-2 py-1 border border-nord-graphite outline-none"
           @keydown.enter.prevent="saveRename(att)"
           @keydown.escape.prevent="cancelRename"
         >
@@ -23,7 +38,7 @@
         :href="`/api/files/${att.id}?download=1`"
         target="_blank"
         rel="noopener noreferrer"
-        class="flex-1 text-xs text-nord-slate dark:text-nord-ice truncate hover:underline"
+        class="flex-1 text-sm text-nord-slate dark:text-nord-ice truncate hover:underline"
         @click.stop.prevent="openAttachment(att)"
       >
         {{ att.filename }}
@@ -31,18 +46,18 @@
 
       <!-- Inline confirmation -->
       <template v-if="confirmingId === att.id">
-        <button class="text-xs text-nord-slate dark:text-nord-frost hover:underline" @click.stop="confirmingId = null">Cancel</button>
-        <button class="text-xs text-nord-ember font-medium hover:underline" @click.stop="$emit('delete', att.id); confirmingId = null">Delete</button>
+        <button class="text-sm text-nord-slate dark:text-nord-frost hover:underline" @click.stop="confirmingId = null">Cancel</button>
+        <button class="text-sm text-nord-ember font-medium hover:underline" @click.stop="$emit('delete', att.id); confirmingId = null">Delete</button>
       </template>
       <template v-else-if="renamingId === att.id">
-        <button class="text-xs text-nord-slate dark:text-nord-frost hover:underline" @click.stop="cancelRename">Cancel</button>
-        <button class="text-xs text-nord-aurora font-medium hover:underline" @click.stop="saveRename(att)">Save</button>
+        <button class="text-sm text-nord-slate dark:text-nord-frost hover:underline" @click.stop="cancelRename">Cancel</button>
+        <button class="text-sm text-nord-aurora font-medium hover:underline" @click.stop="saveRename(att)">Save</button>
       </template>
       <template v-else>
-        <span class="text-xs text-nord-slate dark:text-nord-frost">{{ formatSize(att.size) }}</span>
+        <span class="text-sm text-nord-slate dark:text-nord-frost">{{ formatSize(att.size) }}</span>
         <button
           v-if="deletable && noteId"
-          class="w-6 h-6 flex items-center justify-center rounded-full text-nord-frost hover:bg-nord-graphite/40 transition-all flex-shrink-0"
+          class="-mr-1 w-6 h-6 flex items-center justify-center rounded-full text-nord-frost hover:bg-nord-graphite/40 transition-all flex-shrink-0"
           title="Rename"
           @click.stop="startRename(att)"
         >
@@ -52,7 +67,7 @@
         </button>
         <button
           v-if="deletable"
-          class="w-6 h-6 flex items-center justify-center rounded-full text-nord-ember hover:bg-nord-ember/10 transition-all flex-shrink-0"
+          class="-ml-1 w-6 h-6 flex items-center justify-center rounded-full text-nord-ember hover:bg-nord-ember/10 transition-all flex-shrink-0"
           title="Delete"
           @click.stop="confirmingId = att.id"
         >
@@ -75,10 +90,34 @@ const renamingId = ref<string | null>(null)
 const renameValue = ref('')
 const renameInputRefs = ref<Record<string, HTMLInputElement | null>>({})
 const { show: showSnackbar } = useSnackbar()
-const { renameAttachment } = useNotes()
+const { renameAttachment, reorderAttachments } = useNotes()
+const localAttachments = ref<Attachment[]>([])
+const isSortable = computed(() => Boolean(props.deletable && props.noteId))
+const displayAttachments = computed(() => localAttachments.value)
+watch(
+  () => props.attachments,
+  (next) => { localAttachments.value = [...next] },
+  { immediate: true }
+)
 const isStandalone = computed(() => {
   if (import.meta.server) return false
   return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true
+})
+
+const { dragOverIdx, onDragStart, onDragOver, onDrop, onDragEnd, startTouchDrag } = useDragSort({
+  getItems: () => localAttachments.value,
+  onReorder: async (items) => {
+    const nextItems = items.map((item, position) => ({ ...item, position }))
+    localAttachments.value = nextItems
+    if (!props.noteId) return
+    try {
+      await reorderAttachments(props.noteId, nextItems.map((att) => att.id))
+    } catch (e: any) {
+      const msg = e?.data?.statusMessage || e?.statusMessage || e?.message || 'Reorder Failed'
+      showSnackbar(msg, 'error')
+      localAttachments.value = [...props.attachments]
+    }
+  },
 })
 
 const openAttachment = (att: Attachment) => {

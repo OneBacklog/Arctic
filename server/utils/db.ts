@@ -61,6 +61,7 @@ export const attachments = sqliteTable('attachments', {
   mimeType: text('mime_type').notNull(),
   size: integer('size').notNull().default(0),
   thumbnailPath: text('thumbnail_path'),
+  position: real('position').notNull().default(0),
   createdAt: text('created_at').notNull(),
 }, (t) => ({
   noteIdIdx: index('attachments_note_id_idx').on(t.noteId),

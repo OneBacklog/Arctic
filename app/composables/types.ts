@@ -13,6 +13,7 @@ export interface Attachment {
   mimeType: string
   size: number
   thumbnailPath: string | null
+  position: number
   createdAt: string
 }
 
