@@ -10,7 +10,7 @@
       </svg>
       <template v-if="renamingId === att.id">
         <input
-          ref="renameInputRef"
+          :ref="(el) => setRenameRef(att.id, el)"
           v-model="renameValue"
           type="text"
           class="flex-1 text-xs bg-nord-obsidian text-nord-snow rounded-md px-2 py-1 border border-nord-graphite outline-none"
@@ -73,7 +73,7 @@ defineEmits<{ delete: [id: string] }>()
 const confirmingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renameValue = ref('')
-const renameInputRef = ref<HTMLInputElement | null>(null)
+const renameInputRefs = ref<Record<string, HTMLInputElement | null>>({})
 const { show: showSnackbar } = useSnackbar()
 const { renameAttachment } = useNotes()
 const isStandalone = computed(() => {
@@ -101,7 +101,7 @@ const startRename = async (att: Attachment) => {
   renamingId.value = att.id
   renameValue.value = att.filename
   await nextTick()
-  renameInputRef.value?.focus()
+  renameInputRefs.value[att.id]?.focus()
 }
 
 const cancelRename = () => {
@@ -124,5 +124,9 @@ const saveRename = async (att: Attachment) => {
     const msg = e?.data?.statusMessage || e?.statusMessage || e?.message || 'Rename Failed'
     showSnackbar(msg, 'error')
   }
+}
+
+const setRenameRef = (id: string, el: HTMLInputElement | null) => {
+  renameInputRefs.value[id] = el
 }
 </script>
