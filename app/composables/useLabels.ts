@@ -23,6 +23,13 @@ export const useLabels = () => {
     const label = await apiFetch<Label>(`/api/labels/${id}`, { method: 'PUT', body: { name } })
     const idx = labels.value.findIndex((l) => l.id === id)
     if (idx !== -1) labels.value[idx] = label
+    const notes = useState<any[]>('notes')
+    if (notes.value) {
+      notes.value = notes.value.map((note) => ({
+        ...note,
+        labels: note.labels?.map((l: Label) => (l.id === id ? { ...l, name: label.name } : l)) ?? [],
+      }))
+    }
     return label
   }
 
