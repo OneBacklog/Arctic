@@ -61,6 +61,7 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
+      navigateFallback: null,
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       disableDevLogs: true,
       navigationPreload: false,
