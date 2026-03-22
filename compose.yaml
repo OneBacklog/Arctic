@@ -1,15 +1,13 @@
 services:
   app:
+    image: ghcr.io/onebacklog/arctic:latest
     env_file:
       - .env
-    build:
-      context: .
-      dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT}:3000"
     environment:
       - NODE_ENV=production
-      - COOKIE_SECURE=true
+      - COOKIE_SECURE=${COOKIE_SECURE}
       - JWT_SECRET=${JWT_SECRET}
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
       - DATABASE_PATH=${DATABASE_PATH}
@@ -26,11 +24,9 @@ services:
       - arctic
 
   setup-auth:
+    image: ghcr.io/onebacklog/arctic:latest
     env_file:
       - .env
-    build:
-      context: .
-      dockerfile: Dockerfile
     profiles: [tools]
     environment:
       - DATABASE_PATH=${DATABASE_PATH}
