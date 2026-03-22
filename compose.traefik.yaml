@@ -1,0 +1,69 @@
+services:
+  app:
+    image: ghcr.io/onebacklog/arctic:latest
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:3000"
+    environment:
+      - NODE_ENV=production
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - JWT_SECRET=${JWT_SECRET}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - DATABASE_PATH=${DATABASE_PATH}
+      - FILES_PATH=${FILES_PATH}
+      - MEILISEARCH_HOST=${MEILISEARCH_HOST}
+    volumes:
+      - ./data/db:/app/data/db
+      - ./data/files:/app/data/files
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - traefik # Change to your existing Traefik network name
+      - arctic
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.arctic.rule=Host(`arctic.YOUR_DOMAIN.com`)" # Change to your domain
+      - "traefik.http.routers.arctic.tls.certresolver=YOUR_CERT_RESOLVER" # Change to your cert resolver
+      - "traefik.http.routers.arctic.entrypoints=websecure"
+
+  setup-auth:
+    env_file:
+      - .env
+    image: ghcr.io/onebacklog/arctic:latest
+    profiles: [tools]
+    environment:
+      - DATABASE_PATH=${DATABASE_PATH}
+    volumes:
+      - ./data/db:/app/data/db
+    command: node /app/scripts/setup-auth.mjs
+    networks:
+      - arctic
+
+  meilisearch:
+    env_file:
+      - .env
+    image: getmeili/meilisearch:v1.38.2
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=production
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - ./data/meili:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - arctic
+
+networks:
+  traefik: # Change to your existing Traefik network name
+    external: true
+  arctic:
+    driver: bridge
