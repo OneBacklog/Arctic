@@ -33,9 +33,6 @@ if (existing?.value && !reset) {
 }
 
 const secret = totp.generateSecret()
-const issuer = 'Arctic'
-const label = 'arctic'
-const otpauth = totp.toURI({ label, issuer, secret })
 
 if (existing?.value) {
   db.prepare("UPDATE settings SET value = ? WHERE key = 'totp_secret'").run(secret)
