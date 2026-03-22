@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/onebacklog/arctic:latest
+    image: ghcr.io/onebacklog/arctic:1
     env_file:
       - .env
     ports:
@@ -33,7 +33,7 @@ services:
   setup-auth:
     env_file:
       - .env
-    image: ghcr.io/onebacklog/arctic:latest
+    image: ghcr.io/onebacklog/arctic:1
     profiles: [tools]
     environment:
       - DATABASE_PATH=${DATABASE_PATH}
