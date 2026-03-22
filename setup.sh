@@ -27,7 +27,7 @@ fi
 # Create data directories
 mkdir -p data/db data/files data/meili
 chmod 755 data/db data/files data/meili
-echo "✓ Data directories created"
+echo "✓ Data directories ready"
 
 # Copy .env.example if .env doesn't exist
 if [ -f .env ]; then
@@ -69,12 +69,18 @@ force_env() {
 set_env "JWT_SECRET" "$(openssl rand -hex 32)"
 set_env "MEILI_MASTER_KEY" "$(openssl rand -hex 16)"
 
+if [ "$APP_ENV" = "development" ]; then
+  force_env "COOKIE_SECURE" "false"
+else
+  force_env "COOKIE_SECURE" "true"
+fi
+
 echo ""
 echo "Done! Start the app with:"
 echo ""
 if [ "$APP_ENV" = "development" ]; then
-  echo "  docker compose -f compose.yaml -f compose.dev.yaml up -d --build"
+  echo "  docker compose -f compose.dev.yaml up -d"
 else
-  echo "  docker compose up -d --build"
+  echo "  docker compose up -d"
 fi
 echo ""
