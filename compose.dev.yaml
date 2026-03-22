@@ -3,13 +3,69 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:3000"
     environment:
       - NODE_ENV=development
-      - COOKIE_SECURE=false
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - JWT_SECRET=${JWT_SECRET}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - DATABASE_PATH=${DATABASE_PATH}
+      - FILES_PATH=${FILES_PATH}
+      - MEILISEARCH_HOST=${MEILISEARCH_HOST}
     volumes:
+      - ./data/db:/app/data/db
+      - ./data/files:/app/data/files
+      # Bind mount the source code for development
       - ./app:/app/app
       - ./server:/app/server
       - ./public:/app/public
       - ./nuxt.config.ts:/app/nuxt.config.ts
       - ./tsconfig.json:/app/tsconfig.json
       - ./drizzle.config.ts:/app/drizzle.config.ts
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - arctic
+
+  setup-auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    profiles: [tools]
+    environment:
+      - DATABASE_PATH=${DATABASE_PATH}
+    volumes:
+      - ./data/db:/app/data/db
+    command: node /app/scripts/setup-auth.mjs
+    networks:
+      - arctic
+
+  meilisearch:
+    env_file:
+      - .env
+    image: getmeili/meilisearch:v1.38.2
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=development
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - ./data/meili:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - arctic
+
+networks:
+  arctic:
+    driver: bridge
