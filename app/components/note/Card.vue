@@ -131,7 +131,7 @@
       </button>
       <button
         class="toolbar-btn text-nord-ember"
-        title="Delete"
+        title="Delete Permanently"
         @click.stop="$emit('delete', note)"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
