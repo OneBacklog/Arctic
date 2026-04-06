@@ -22,6 +22,7 @@
       empty-message="No notes in Trash."
       @open="editingNote = $event"
       @restore="(n) => restoreNote(n.id)"
+      @delete="(n) => deleteNote(n.id)"
       @label="() => {}"
     />
 
